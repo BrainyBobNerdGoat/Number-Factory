@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Number Factory</title>
+  <style>
+    :root {
+      --ink: #182022; --muted: #687174; --paper: #f4f1e8; --line: #d7d2c5;
+      --cyan: #87cfd1; --orange: #e99352; --green: #86ad78; --yellow: #ddca72;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; overflow: hidden; background: var(--paper); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    button { font: inherit; color: inherit; }
+    .app { height: 100vh; display: grid; grid-template-columns: 74px 1fr 284px; grid-template-rows: 64px 1fr; }
+    header { grid-column: 1 / -1; display: flex; align-items: center; border-bottom: 1px solid var(--line); background: rgba(249,247,240,.96); z-index: 5; }
+    .brand { width: 74px; align-self: stretch; display: grid; place-items: center; border-right: 1px solid var(--line); }
+    .brand-mark { width: 30px; height: 30px; border: 3px solid var(--ink); border-radius: 50%; position: relative; }
+    .brand-mark:before, .brand-mark:after { content:""; position:absolute; width:7px; height:7px; background:var(--ink); border-radius:50%; top:8px; }
+    .brand-mark:before { left:-5px } .brand-mark:after { right:-5px }
+    .title { padding-left: 22px; display:flex; align-items:baseline; gap:10px; }
+    .title h1 { font-family: Georgia, serif; font-size: 21px; margin:0; letter-spacing:-.4px; }
+    .title span { color: var(--muted); font-size:12px; }
+    .stats { margin-left:auto; display:flex; height:100%; }
+    .stat { min-width:112px; padding:11px 18px 8px; border-left:1px solid var(--line); }
+    .stat label { display:block; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:1.2px; }
+    .stat strong { display:block; margin-top:3px; font-size:16px; }
+    .sidebar { border-right:1px solid var(--line); background:#efede4; display:flex; flex-direction:column; align-items:center; padding:14px 0; gap:8px; z-index:4; }
+    .tool { width:48px; height:48px; border:1px solid transparent; border-radius:10px; background:transparent; display:grid; place-items:center; cursor:pointer; }
+    .tool:hover { background:#e5e1d4; } .tool.active { background:var(--ink); color:white; }
+    .tool svg { width:22px; height:22px; } .spacer { flex:1 }
+    .workspace { position:relative; overflow:hidden; cursor:grab; background:#eae7dc; }
+    .workspace:active { cursor:grabbing; }
+    .grid { position:absolute; width:4000px; height:2800px; left:50%; top:50%; transform:translate(-50%,-50%); transform-origin:center; background-color:#f7f5ed; background-image:linear-gradient(#ddd8ca 1px,transparent 1px),linear-gradient(90deg,#ddd8ca 1px,transparent 1px); background-size:40px 40px; box-shadow:0 14px 40px rgba(53,50,40,.12); }
+    .node { position:absolute; width:40px; height:40px; z-index:3; border:2px solid var(--ink); border-radius:7px; display:grid; place-items:center; background:#fffdf6; box-shadow:3px 3px 0 rgba(24,32,34,.12); user-select:none; cursor:pointer; }
+    .node:after { content:""; position:absolute; inset:3px; border:1px solid rgba(24,32,34,.12); border-radius:4px; }
+    .node.miner, .node.digit { background:var(--orange); } .node.smelter, .node.adder { background:var(--cyan); } .node.factory, .node.multiplier { background:var(--yellow); } .node.collector { background:var(--green); border-radius:50%; }
+    .node svg { width:24px; height:24px; z-index:1 } .node .badge { position:absolute; right:-7px; top:-7px; z-index:3; width:18px; height:18px; border-radius:50%; background:var(--ink); color:white; display:grid; place-items:center; font-size:8px; border:2px solid #fff; }
+    .node.collector:after { border-radius:50%; }
+    .machine-number { font-family:Georgia,serif; font-size:22px; font-weight:800; z-index:1; }
+    .belt { position:absolute; height:12px; border-radius:10px; border:2px solid var(--ink); background:#f6f2e6; z-index:1; transform-origin:0 50%; cursor:pointer; }
+    .belt:after { content:""; position:absolute; inset:2px 5px; background:repeating-linear-gradient(90deg,var(--ink) 0 3px,transparent 3px 10px); opacity:.75; pointer-events:none; }
+    .belt.active:after { animation:move var(--conveyor-duration,1s) linear infinite; } @keyframes move { to { background-position:20px 0 } }
+    .number-token { position:absolute; left:0; top:50%; z-index:4; min-width:26px; height:24px; padding:0 6px; display:grid; place-items:center; transform:translate(-50%,-50%); border:2px solid var(--ink); border-radius:14px; background:#fffdf6; box-shadow:2px 2px 0 rgba(24,32,34,.18); color:var(--ink); font-size:11px; font-weight:800; white-space:nowrap; pointer-events:none; animation:carryNumber 1s linear forwards; }
+    @keyframes carryNumber { to { left:100%; } }
+    .belt.bridge { height:20px; margin-top:-4px; background:#fffdf6; z-index:2; box-shadow:0 4px 0 rgba(24,32,34,.25); }
+    .belt.bridge:after { inset:5px 7px; }
+    .node.connection-start { outline:4px solid var(--green); outline-offset:3px; }
+    .inspector { border-left:1px solid var(--line); background:#f7f5ee; padding:22px 20px; z-index:4; overflow:auto; }
+    .inspector h2 { margin:0 0 4px; font-family:Georgia,serif; font-size:20px; } .inspector .sub { color:var(--muted); font-size:12px; }
+    .panel { margin-top:20px; border-top:1px solid var(--line); padding-top:16px; }
+    .panel-title { display:flex; justify-content:space-between; font-size:11px; text-transform:uppercase; letter-spacing:1px; font-weight:800; margin-bottom:10px; }
+    .machine-list { display:grid; gap:8px; }
+    .machine { height:58px; border:1px solid var(--line); border-radius:9px; background:#fffdf7; display:flex; align-items:center; gap:10px; padding:8px 10px; cursor:pointer; }
+    .machine:hover { border-color:#a9a393; transform:translateY(-1px); } .machine.selected { border:2px solid var(--ink); background:#fff; }
+    .machine-icon { width:38px; height:38px; border-radius:7px; display:grid; place-items:center; } .machine-icon svg { width:24px }
+    .machine[data-type="digit"] .machine-icon { background:var(--orange) } .machine[data-type="adder"] .machine-icon { background:var(--cyan) } .machine[data-type="multiplier"] .machine-icon { background:var(--yellow) }
+    .machine[data-type="subtractor"] .machine-icon { background:#e9a1a1 } .machine[data-type="divider"] .machine-icon { background:#b9a2d6 } .machine[data-type="splitter"] .machine-icon { background:#a7c58e }
+    .machine-icon .machine-number { font-size:23px; }
+    .machine b { display:block; font-size:13px } .machine small { color:var(--muted); font-size:10px }
+    .info-row { display:flex; justify-content:space-between; font-size:12px; margin:9px 0; } .info-row span:last-child { font-weight:700 }
+    .upgrade-card { border:1px solid var(--line); border-radius:9px; background:#fffdf7; padding:12px; }
+    .upgrade-card[hidden] { display:none; }
+    .upgrade-card .upgrade-name { display:flex; justify-content:space-between; align-items:center; font-size:13px; }
+    .level-pips { display:flex; gap:4px; margin:10px 0; }
+    .level-pips i { width:22px; height:5px; border-radius:5px; background:#ddd8ca; }
+    .level-pips i.on { background:var(--orange); }
+    .upgrade-button { width:100%; height:38px; border:0; border-radius:7px; background:var(--ink); color:white; font-size:12px; font-weight:800; cursor:pointer; }
+    .upgrade-button:disabled { background:#ccc7ba; cursor:not-allowed; }
+    .progress { height:7px; background:#dedacf; border-radius:10px; overflow:hidden; } .progress i { display:block; width:72%; height:100%; background:var(--orange); border-radius:10px; }
+    .achievement-list { display:grid; gap:7px; }
+    .achievement { border:1px solid var(--line); border-radius:8px; background:#fffdf7; padding:9px 10px; }
+    .achievement.unlocked { border-color:#a9c39b; background:#f2f7ed; }
+    .achievement b { display:block; font-size:11px; }
+    .achievement small { display:block; margin-top:3px; color:var(--muted); font-size:10px; }
+    .toast { position:absolute; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:var(--ink); color:white; padding:10px 14px; border-radius:8px; font-size:12px; opacity:0; transition:.25s; z-index:20; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0) }
+    @media (max-width:900px) { .app{grid-template-columns:64px 1fr 220px}.brand{width:64px}.stat:nth-child(2){display:none}.inspector{padding:18px 14px}.title span{display:none} }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><div class="brand-mark"></div></div>
+    <div class="title"><h1>Number Factory</h1><span>Make numbers. Make more.</span></div>
+    <div class="stats">
+      <div class="stat"><label>Network output</label><strong id="rate">0 /s</strong></div>
+      <div class="stat"><label>Factory total</label><strong id="stored">0</strong></div>
+      <div class="stat"><label>Coins</label><strong id="currency">1000</strong></div>
+      <div class="stat"><label>Run time</label><strong id="cycle">00:00</strong></div>
+    </div>
+  </header>
+  <nav class="sidebar">
+    <button class="tool active" title="Build" aria-label="Build"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V8l8-5 8 5v12M8 20v-7h8v7M8 9h8"/></svg></button>
+    <button class="tool" title="Conveyor" aria-label="Conveyor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 16h18M5 8h14M7 8v8m5-8v8m5-8v8M3 12l3-4m15 4-3-4"/></svg></button>
+    <button class="tool" title="Bridge" aria-label="Bridge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18h18M5 18V8h14v10M8 8V5h8v3M8 13h8"/></svg></button>
+    <button class="tool" title="Delete" aria-label="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg></button>
+    <button class="tool" title="Inspect" aria-label="Inspect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg></button>
+    <button class="tool" title="Upgrade" aria-label="Upgrade"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2.2 4.5L19 8l-3.5 3.4.8 4.8L12 14l-4.3 2.2.8-4.8L5 8l4.8-.5L12 3z"/><path d="M12 18v3"/></svg></button>
+    <div class="spacer"></div>
+  </nav>
+  <main class="workspace" id="workspace">
+    <div class="grid" id="grid">
+      <div class="node digit" style="left:1600px;top:1240px" data-id="machine-1" data-type="digit" title="Digit Press"><span class="machine-number">1</span><span class="badge">1</span></div>
+      <div class="node digit" style="left:1600px;top:1320px" data-id="machine-5" data-type="digit" title="Digit Press"><span class="machine-number">1</span><span class="badge">2</span></div>
+      <div class="node digit" style="left:1600px;top:1400px" data-id="machine-6" data-type="digit" title="Digit Press"><span class="machine-number">1</span><span class="badge">3</span></div>
+      <div class="node digit" style="left:1600px;top:1480px" data-id="machine-7" data-type="digit" title="Digit Press"><span class="machine-number">1</span><span class="badge">4</span></div>
+      <div class="node adder" style="left:1800px;top:1360px" data-id="machine-2" data-type="adder" title="Adder"><span class="machine-number">+</span><span class="badge">2</span></div>
+      <div class="node multiplier" style="left:2000px;top:1360px" data-id="machine-3" data-type="multiplier" title="Multiplier"><span class="machine-number">×</span><span class="badge">3</span></div>
+      <div class="node collector" style="left:2200px;top:1360px" data-id="machine-4" data-type="collector" title="Central Collector"><span class="machine-number">◎</span><span class="badge">+</span></div>
+    </div>
+    <div class="toast" id="toast">Machine placed</div>
+  </main>
+  <aside class="inspector">
+    <h2>Build your line</h2><div class="sub" id="helpText">Four 1s feed the Adder; connect more lines to operators</div>
+    <div class="panel" id="upgradePanel">
+      <div class="panel-title"><span>Machine upgrade</span><span id="upgradeLevel">No selection</span></div>
+      <div class="upgrade-card" id="upgradeCard" hidden>
+        <div class="upgrade-name"><b id="upgradeName">Digit Press</b><span id="upgradeEffect">Output: 1</span></div>
+        <div class="level-pips" id="levelPips"></div>
+        <button class="upgrade-button" id="upgradeButton">Upgrade · 50 coins</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span>Conveyor speed</span><span id="conveyorLevel">Level 1 / 5</span></div>
+      <div class="upgrade-card">
+        <div class="upgrade-name"><b>Network-wide boost</b><span id="conveyorEffect">Speed: 1×</span></div>
+        <div class="level-pips" id="conveyorPips"></div>
+        <button class="upgrade-button" id="conveyorUpgradeButton">Upgrade · 250 coins</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span>Coins in wallet</span><span id="balance">1000</span></div>
+      <div class="machine-list">
+        <div class="machine selected" data-type="digit"><div class="machine-icon"><b class="machine-number">1</b></div><div><b>Digit Press</b><small>Outputs 1 · cost <span data-cost="digit">10</span></small></div></div>
+        <div class="machine" data-type="adder"><div class="machine-icon"><b class="machine-number">+</b></div><div><b>Adder</b><small>Adds all inputs · cost <span data-cost="adder">75</span></small></div></div>
+        <div class="machine" data-type="subtractor"><div class="machine-icon"><b class="machine-number">−</b></div><div><b>Subtractor</b><small>First input minus the rest · cost <span data-cost="subtractor">100</span></small></div></div>
+        <div class="machine" data-type="divider"><div class="machine-icon"><b class="machine-number">÷</b></div><div><b>Divider</b><small>First input divided by the rest · cost <span data-cost="divider">150</span></small></div></div>
+        <div class="machine" data-type="multiplier"><div class="machine-icon"><b class="machine-number">×</b></div><div><b>Multiplier</b><small>Multiplies all inputs · cost <span data-cost="multiplier">300</span></small></div></div>
+        <div class="machine" data-type="splitter"><div class="machine-icon"><b class="machine-number">↗</b></div><div><b>Splitter</b><small>Alternates outputs · cost <span data-cost="splitter">200</span></small></div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span>Next milestone</span><span style="color:#638c58">● Building</span></div>
+      <div class="info-row"><span>Target</span><span>1,000,000</span></div><div class="progress"><i id="progressBar"></i></div>
+      <div class="info-row"><span>Machines online</span><span id="activeCount">7</span></div>
+      <div class="info-row"><span>Collector</span><span>Value → total + coins</span></div>
+      <div class="info-row"><span>Operator rule</span><span>One value per belt</span></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span>Achievements</span><span id="achievementCount">0 / 13</span></div>
+      <div class="achievement-list" id="achievementList"></div>
+    </div>
+  </aside>
+</div>
+<script>
+  const grid = document.getElementById('grid');
+  const workspace = document.getElementById('workspace');
+  const toast = document.getElementById('toast');
+  const format = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+  const CELL_SIZE = 40;
+  const WORLD_WIDTH = 4000;
+  const WORLD_HEIGHT = 2800;
+  const SIMULATION_STEP = 0.1;
+  const machineTypes = {
+    digit: { name: 'Digit Press', symbol: '1', baseCost: 10 },
+    adder: { name: 'Adder', symbol: '+', baseCost: 75 },
+    subtractor: { name: 'Subtractor', symbol: '−', baseCost: 100 },
+    divider: { name: 'Divider', symbol: '÷', baseCost: 150 },
+    multiplier: { name: 'Multiplier', symbol: '×', baseCost: 300 },
+    splitter: { name: 'Splitter', symbol: '↗', baseCost: 200 },
+    collector: { name: 'Central Collector', symbol: '◎' }
+  };
+  const counts = { digit: 4, adder: 1, subtractor: 0, divider: 0, multiplier: 1, splitter: 0, collector: 1 };
+  const links = [
+    { id: 'belt-1', from: 'machine-1', to: 'machine-2', bridge: false },
+    { id: 'belt-2', from: 'machine-2', to: 'machine-3', bridge: false },
+    { id: 'belt-3', from: 'machine-3', to: 'machine-4', bridge: false },
+    { id: 'belt-4', from: 'machine-5', to: 'machine-2', bridge: false },
+    { id: 'belt-5', from: 'machine-6', to: 'machine-2', bridge: false },
+    { id: 'belt-6', from: 'machine-7', to: 'machine-2', bridge: false }
+  ];
+  const inputs = new Map();
+  const splitIndexes = new Map();
+  const divisionWarnings = new Set();
+  const machineLevels = new Map();
+  let inTransit = [];
+  let selected = 'digit';
+  let mode = 'build';
+  let balance = 1000;
+  let coinsEarned = 0;
+  let produced = 0;
+  let seconds = 0;
+  let networkOutput = 0;
+  let zoom = .8;
+  let panX = 0;
+  let panY = 0;
+  let dragging = false;
+  let moved = false;
+  let connectionStart = null;
+  let selectedMachineId = null;
+  let nextMachineId = 8;
+  let nextLinkId = 7;
+  let conveyorLevel = 1;
+  let totalMachinesBuilt = 7;
+  let totalLinksBuilt = links.length;
+  let totalBridgesBuilt = links.filter(link => link.bridge).length;
+  let totalUpgrades = 0;
+  let hasMaxLevelUpgrade = false;
+  let productionElapsed = 0;
+  let startX = 0;
+  let startY = 0;
+  let pointerX = 0;
+  let pointerY = 0;
+  const unlockedAchievements = new Set();
+  const achievements = [
+    { title: 'First Numbers', description: 'Collect your first number.', check: () => produced >= 1 },
+    { title: 'Pocket Change', description: 'Earn 100 coins.', check: () => coinsEarned >= 100 },
+    { title: 'Century Club', description: 'Collect 100 total.', check: () => produced >= 100 },
+    { title: 'Thousand Strong', description: 'Collect 1,000 total.', check: () => produced >= 1000 },
+    { title: 'Millionaire Factory', description: 'Collect 1,000,000 total.', check: () => produced >= 1000000 },
+    { title: 'Growing Workforce', description: 'Build 10 machines.', check: () => totalMachinesBuilt >= 10 },
+    { title: 'Factory District', description: 'Build 25 machines.', check: () => totalMachinesBuilt >= 25 },
+    { title: 'Connected', description: 'Build 10 conveyors.', check: () => totalLinksBuilt >= 10 },
+    { title: 'Conveyor Empire', description: 'Build 25 conveyors.', check: () => totalLinksBuilt >= 25 },
+    { title: 'Overpass', description: 'Build a bridge conveyor.', check: () => totalBridgesBuilt >= 1 },
+    { title: 'All Operations', description: 'Build an adder, subtractor, divider, multiplier, and splitter.', check: () => ['adder', 'subtractor', 'divider', 'multiplier', 'splitter'].every(type => counts[type] > 0) },
+    { title: 'Tuned Up', description: 'Upgrade a machine.', check: () => totalUpgrades >= 1 },
+    { title: 'Maximum Power', description: 'Upgrade a machine to level 5.', check: () => hasMaxLevelUpgrade }
+  ];
+
+  function conveyorSpeed() {
+    return 1 + (conveyorLevel - 1) * 0.5;
+  }
+
+  function conveyorUpgradeCost() {
+    return Math.round(250 * Math.pow(2, conveyorLevel - 1));
+  }
+
+  function renderAchievements() {
+    const list = document.getElementById('achievementList');
+    list.innerHTML = '';
+    achievements.forEach((achievement, index) => {
+      const unlocked = unlockedAchievements.has(index);
+      const item = document.createElement('div');
+      item.className = `achievement${unlocked ? ' unlocked' : ''}`;
+      item.innerHTML = `<b>${unlocked ? '✓ ' : '○ '}${achievement.title}</b><small>${achievement.description}</small>`;
+      list.appendChild(item);
+    });
+    document.getElementById('achievementCount').textContent = `${unlockedAchievements.size} / ${achievements.length}`;
+  }
+
+  function checkAchievements() {
+    let changed = false;
+    achievements.forEach((achievement, index) => {
+      if (!unlockedAchievements.has(index) && achievement.check()) {
+        unlockedAchievements.add(index);
+        showToast(`Achievement unlocked: ${achievement.title}`);
+        changed = true;
+      }
+    });
+    if (changed) renderAchievements();
+  }
+
+  function updateConveyorUpgradePanel() {
+    document.getElementById('conveyorLevel').textContent = `Level ${conveyorLevel} / 5`;
+    document.getElementById('conveyorEffect').textContent = `Speed: ${format.format(conveyorSpeed())}×`;
+    const pips = document.getElementById('conveyorPips');
+    pips.innerHTML = '';
+    for (let index = 1; index <= 5; index++) {
+      const pip = document.createElement('i');
+      if (index <= conveyorLevel) pip.className = 'on';
+      pips.appendChild(pip);
+    }
+    const button = document.getElementById('conveyorUpgradeButton');
+    const cost = conveyorUpgradeCost();
+    button.disabled = conveyorLevel >= 5 || balance < cost;
+    button.textContent = conveyorLevel >= 5 ? 'Maximum level' : `Upgrade · ${format.format(cost)} coins`;
+  }
+
+  grid.querySelectorAll('.node').forEach(node => {
+    inputs.set(node.dataset.id, []);
+    machineLevels.set(node.dataset.id, 1);
+  });
+
+  function priceFor(type) {
+    return Math.ceil(machineTypes[type].baseCost * Math.pow(1.6, Math.max(0, counts[type] - 1)));
+  }
+
+  function updateStats() {
+    document.getElementById('rate').textContent = `${format.format(networkOutput)} /s`;
+    document.getElementById('activeCount').textContent = format.format(grid.querySelectorAll('.node').length);
+    document.getElementById('balance').textContent = format.format(balance);
+    document.getElementById('currency').textContent = format.format(balance);
+    document.getElementById('stored').textContent = format.format(produced);
+    document.getElementById('progressBar').style.width = `${Math.min(100, produced / 1000000 * 100)}%`;
+    document.querySelectorAll('[data-cost]').forEach(label => {
+      label.textContent = format.format(priceFor(label.dataset.cost));
+    });
+    updateUpgradePanel();
+    updateConveyorUpgradePanel();
+    checkAchievements();
+  }
+
+  function upgradeCost(node) {
+    if (!node) return Infinity;
+    const level = machineLevels.get(node.dataset.id) || 1;
+    const base = node.dataset.type === 'collector' ? 150 : 50;
+    return Math.round(base * Math.pow(1.75, level - 1));
+  }
+
+  function upgradeEffect(node) {
+    const type = node?.dataset.type;
+    const level = node ? (machineLevels.get(node.dataset.id) || 1) : 1;
+    if (type === 'digit') return `Output: ${level}`;
+    if (type === 'collector') return `Coin value: +${(level - 1) * 25}%`;
+    if (type === 'splitter') return `Power: ${level} / 5`;
+    return `Power: ${100 + (level - 1) * 25}%`;
+  }
+
+  function updateUpgradePanel() {
+    const node = selectedMachineId ? grid.querySelector(`[data-id="${selectedMachineId}"]`) : null;
+    const card = document.getElementById('upgradeCard');
+    if (!node) {
+      card.hidden = true;
+      document.getElementById('upgradeLevel').textContent = 'No selection';
+      return;
+    }
+    const level = machineLevels.get(node.dataset.id) || 1;
+    card.hidden = false;
+    document.getElementById('upgradeLevel').textContent = `Level ${level} / 5`;
+    document.getElementById('upgradeName').textContent = node.title;
+    document.getElementById('upgradeEffect').textContent = upgradeEffect(node);
+    const pips = document.getElementById('levelPips');
+    pips.innerHTML = '';
+    for (let index = 1; index <= 5; index++) {
+      const pip = document.createElement('i');
+      if (index <= level) pip.className = 'on';
+      pips.appendChild(pip);
+    }
+    const button = document.getElementById('upgradeButton');
+    const cost = upgradeCost(node);
+    button.disabled = level >= 5 || balance < cost;
+    button.textContent = level >= 5 ? 'Maximum level' : `Upgrade · ${format.format(cost)} coins`;
+  }
+
+  function selectMachine(node) {
+    selectedMachineId = node.dataset.id;
+    updateUpgradePanel();
+  }
+
+  function combineInputs(type, values) {
+    const [first, ...rest] = values;
+    switch (type) {
+      case 'adder':
+        return sumNumbers(values);
+      case 'subtractor':
+        return rest.reduce((value, next) => value - next, first);
+      case 'multiplier':
+        return values.reduce((product, value) => product * value, 1);
+      case 'divider':
+        return rest.reduce((value, divisor) => value / divisor, first);
+      default:
+        throw new Error(`Unsupported arithmetic machine: ${type}`);
+    }
+  }
+
+  function sumNumbers(values) {
+    return values.reduce((sum, value) => sum + value, 0);
+  }
+
+  function takeInputBatch(incomingLinks, queue) {
+    if (!incomingLinks.length || incomingLinks.some(link => !queue.some(packet => packet.linkId === link.id))) {
+      return null;
+    }
+    return incomingLinks.map(link => {
+      const packetIndex = queue.findIndex(packet => packet.linkId === link.id);
+      return queue.splice(packetIndex, 1)[0].amount;
+    });
+  }
+
+  let toastTimer;
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 1500);
+  }
+
+  function setMode(nextMode) {
+    mode = nextMode;
+    connectionStart = null;
+    grid.querySelectorAll('.connection-start').forEach(node => node.classList.remove('connection-start'));
+    document.querySelectorAll('.tool').forEach(tool => {
+      tool.classList.toggle('active', tool.title.toLowerCase() === mode);
+    });
+    const instructions = {
+      build: 'Buy a machine, then place it on the map',
+      conveyor: 'Click an output machine, then its destination',
+      bridge: 'Connect two machines with an overpass',
+      delete: 'Click a machine or conveyor to remove it',
+      inspect: 'Click a machine to inspect its operation',
+      upgrade: 'Click a machine to spend coins and improve it'
+    };
+    document.getElementById('helpText').textContent = instructions[mode];
+  }
+
+  function renderLinks() {
+    grid.querySelectorAll('.belt').forEach(belt => belt.remove());
+    links.forEach(link => {
+      const source = grid.querySelector(`[data-id="${link.from}"]`);
+      const destination = grid.querySelector(`[data-id="${link.to}"]`);
+      if (!source || !destination) return;
+      const x1 = parseFloat(source.style.left) + CELL_SIZE / 2;
+      const y1 = parseFloat(source.style.top) + CELL_SIZE / 2;
+      const x2 = parseFloat(destination.style.left) + CELL_SIZE / 2;
+      const y2 = parseFloat(destination.style.top) + CELL_SIZE / 2;
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const belt = document.createElement('div');
+      belt.className = `belt active${link.bridge ? ' bridge' : ''}`;
+      belt.style.setProperty('--conveyor-duration', `${1 / conveyorSpeed()}s`);
+      belt.dataset.linkId = link.id;
+      belt.title = `${link.bridge ? 'Bridge' : 'Conveyor'}: ${source.title} → ${destination.title}`;
+      belt.style.left = `${x1}px`;
+      belt.style.top = `${y1 - 6}px`;
+      belt.style.width = `${Math.hypot(dx, dy)}px`;
+      belt.style.transform = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI}deg)`;
+      grid.insertBefore(belt, grid.firstChild);
+    });
+  }
+
+  function addMachine(type, x, y) {
+    const id = `machine-${nextMachineId++}`;
+    const machine = machineTypes[type];
+    const node = document.createElement('div');
+    node.className = `node ${type}`;
+    node.dataset.id = id;
+    node.dataset.type = type;
+    node.title = machine.name;
+    node.style.left = `${x}px`;
+    node.style.top = `${y}px`;
+    node.innerHTML = `<span class="machine-number">${machine.symbol}</span><span class="badge">${counts[type] + 1}</span>`;
+    grid.appendChild(node);
+    inputs.set(id, []);
+    machineLevels.set(id, 1);
+    counts[type]++;
+    totalMachinesBuilt++;
+  }
+
+  function removeMachine(node) {
+    if (node.dataset.type === 'collector') {
+      showToast('The central collector is fixed in place');
+      return;
+    }
+    const id = node.dataset.id;
+    node.remove();
+    inputs.delete(id);
+    if (selectedMachineId === id) {
+      selectedMachineId = null;
+      updateUpgradePanel();
+    }
+    splitIndexes.delete(id);
+    for (let index = links.length - 1; index >= 0; index--) {
+      if (links[index].from === id || links[index].to === id) removeLinkAt(index);
+    }
+    renderLinks();
+    updateStats();
+    showToast(`${node.title} removed`);
+  }
+
+  function removeLinkAt(index) {
+    const [removed] = links.splice(index, 1);
+    inputs.forEach(queue => {
+      for (let packetIndex = queue.length - 1; packetIndex >= 0; packetIndex--) {
+        if (queue[packetIndex].linkId === removed.id) queue.splice(packetIndex, 1);
+      }
+    });
+  }
+
+  function connectMachines(source, destination, bridge) {
+    const sourceNode = grid.querySelector(`[data-id="${source}"]`);
+    const destinationNode = grid.querySelector(`[data-id="${destination}"]`);
+    if (sourceNode?.dataset.type === 'collector') {
+      showToast('The collector is an endpoint');
+      return;
+    }
+    if (destinationNode?.dataset.type === 'digit') {
+      showToast('Digit Presses are sources and cannot take inputs');
+      return;
+    }
+    if (source === destination) {
+      showToast('Choose a different destination');
+      return;
+    }
+    if (links.some(link => link.from === source && link.to === destination)) {
+      showToast('Those machines are already connected');
+      return;
+    }
+    if (sourceNode?.dataset.type !== 'splitter' && links.some(link => link.from === source)) {
+      showToast('Use a Splitter to create multiple outputs');
+      return;
+    }
+    function reachesMachine(from, target, visited = new Set()) {
+      if (from === target) return true;
+      if (visited.has(from)) return false;
+      visited.add(from);
+      return links.some(link => link.from === from && reachesMachine(link.to, target, visited));
+    }
+    if (reachesMachine(destination, source)) {
+      showToast('Conveyor loops are not supported');
+      return;
+    }
+    links.push({ id: `belt-${nextLinkId++}`, from: source, to: destination, bridge });
+    totalLinksBuilt++;
+    if (bridge) totalBridgesBuilt++;
+    renderLinks();
+    checkAchievements();
+    showToast(bridge ? 'Bridge placed' : 'Conveyor connected');
+  }
+
+  function animateNumber(link, amount) {
+    const belt = grid.querySelector(`[data-link-id="${link.id}"]`);
+    if (!belt) return;
+    const token = document.createElement('span');
+    token.className = 'number-token';
+    token.textContent = format.format(amount);
+    token.title = `Number ${format.format(amount)} moving to the next machine`;
+    token.style.animationDuration = `${1 / conveyorSpeed()}s`;
+    belt.appendChild(token);
+    token.addEventListener('animationend', () => token.remove(), { once: true });
+  }
+
+  function sendOutput(node, amount) {
+    const level = machineLevels.get(node.dataset.id) || 1;
+    if (node.dataset.type === 'digit') {
+      amount = level;
+    } else if (node.dataset.type !== 'splitter') {
+      amount = amount * (1 + (level - 1) * 0.25);
+    }
+    const outgoing = links.filter(link => link.from === node.dataset.id);
+    if (!outgoing.length) return;
+    let link = outgoing[0];
+    if (node.dataset.type === 'splitter' && outgoing.length > 1) {
+      const index = splitIndexes.get(node.dataset.id) || 0;
+      link = outgoing[index % outgoing.length];
+      splitIndexes.set(node.dataset.id, index + 1);
+    }
+    animateNumber(link, amount);
+    inTransit.push({ linkId: link.id, amount, remaining: 1 / conveyorSpeed() });
+  }
+
+  function simulateTick(deltaSeconds) {
+    const outputTick = { value: 0 };
+    const arriving = [];
+    inTransit = inTransit.filter(packet => {
+      packet.remaining -= deltaSeconds;
+      if (packet.remaining <= 0) arriving.push(packet);
+      return packet.remaining > 0;
+    });
+    arriving.forEach(packet => {
+      const link = links.find(item => item.id === packet.linkId);
+      if (link && inputs.has(link.to)) {
+        inputs.get(link.to).push({ linkId: packet.linkId, amount: packet.amount });
+      }
+    });
+
+    productionElapsed += deltaSeconds;
+    const productionSteps = Math.floor(productionElapsed + 1e-9);
+    productionElapsed -= productionSteps;
+    for (let step = 0; step < productionSteps; step++) {
+      grid.querySelectorAll('.node').forEach(node => {
+        const type = node.dataset.type;
+        const queue = inputs.get(node.dataset.id);
+        if (type === 'collector') {
+          const incomingLinks = links.filter(link => link.to === node.dataset.id);
+          let batch;
+          while (queue && (batch = takeInputBatch(incomingLinks, queue))) {
+            const level = machineLevels.get(node.dataset.id) || 1;
+            const amount = sumNumbers(batch) * (1 + (level - 1) * 0.25);
+            balance += amount;
+            coinsEarned += Math.max(0, amount);
+            produced += amount;
+            outputTick.value += amount;
+          }
+          return;
+        }
+        if (type === 'digit') {
+          sendOutput(node, 1);
+          return;
+        }
+        if (!queue || !queue.length) return;
+        if (type === 'splitter') {
+          queue.splice(0).forEach(packet => sendOutput(node, packet.amount));
+          return;
+        }
+
+        const batch = takeInputBatch(links.filter(link => link.to === node.dataset.id), queue);
+        if (!batch) return;
+        if (type === 'divider') {
+          const divisors = batch.slice(1);
+          if (divisors.includes(0)) {
+            if (!divisionWarnings.has(node.dataset.id)) {
+              showToast('Divider cannot divide by zero; batch discarded');
+              divisionWarnings.add(node.dataset.id);
+            }
+            return;
+          }
+          divisionWarnings.delete(node.dataset.id);
+        }
+        sendOutput(node, combineInputs(type, batch));
+      });
+    }
+    if (productionSteps) networkOutput = outputTick.value / productionSteps;
+    updateStats();
+  }
+
+  document.querySelectorAll('.machine').forEach(machine => {
+    machine.addEventListener('click', () => {
+      document.querySelectorAll('.machine').forEach(item => item.classList.remove('selected'));
+      machine.classList.add('selected');
+      selected = machine.dataset.type;
+      setMode('build');
+    });
+  });
+
+  document.getElementById('upgradeButton').addEventListener('click', () => {
+    if (!selectedMachineId) return;
+    const node = grid.querySelector(`[data-id="${selectedMachineId}"]`);
+    if (!node) return;
+    const level = machineLevels.get(node.dataset.id) || 1;
+    if (level >= 5) return;
+    const cost = upgradeCost(node);
+    if (balance < cost) {
+      showToast(`Need ${format.format(cost)} coins for this upgrade`);
+      return;
+    }
+    balance -= cost;
+    machineLevels.set(node.dataset.id, level + 1);
+    totalUpgrades++;
+    if (level + 1 === 5) hasMaxLevelUpgrade = true;
+    const badge = node.querySelector('.badge');
+    if (badge) badge.textContent = level + 1;
+    showToast(`${node.title} upgraded to level ${level + 1}`);
+    updateStats();
+    updateUpgradePanel();
+  });
+
+  document.getElementById('conveyorUpgradeButton').addEventListener('click', () => {
+    if (conveyorLevel >= 5) return;
+    const cost = conveyorUpgradeCost();
+    if (balance < cost) {
+      showToast(`Need ${format.format(cost)} coins for this upgrade`);
+      return;
+    }
+    balance -= cost;
+    conveyorLevel++;
+    renderLinks();
+    updateStats();
+    showToast(`All conveyors upgraded to ${format.format(conveyorSpeed())}× speed`);
+  });
+
+  document.querySelectorAll('.tool').forEach(tool => {
+    tool.addEventListener('click', () => {
+      setMode(tool.title.toLowerCase());
+      showToast(document.getElementById('helpText').textContent);
+    });
+  });
+
+  function applyView() {
+    grid.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
+  }
+
+  workspace.addEventListener('wheel', event => {
+    event.preventDefault();
+    zoom = Math.max(.35, Math.min(1.35, zoom - event.deltaY * .001));
+    applyView();
+  }, { passive: false });
+
+  workspace.addEventListener('mousedown', event => {
+    if (event.target === grid || event.target === workspace) {
+      dragging = true;
+      moved = false;
+      startX = event.clientX - panX;
+      startY = event.clientY - panY;
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+    }
+  });
+
+  window.addEventListener('mousemove', event => {
+    if (!dragging) return;
+    if (Math.abs(event.clientX - pointerX) + Math.abs(event.clientY - pointerY) > 4) moved = true;
+    panX = event.clientX - startX;
+    panY = event.clientY - startY;
+    applyView();
+  });
+  window.addEventListener('mouseup', () => { dragging = false; });
+
+  grid.addEventListener('click', event => {
+    if (moved) {
+      moved = false;
+      return;
+    }
+    const node = event.target.closest('.node');
+    if (node) {
+      if (mode === 'delete') {
+        removeMachine(node);
+        return;
+      }
+      if (mode === 'conveyor' || mode === 'bridge') {
+        if (!connectionStart) {
+          connectionStart = node.dataset.id;
+          node.classList.add('connection-start');
+          showToast('Now click the destination machine');
+        } else {
+          const sourceNode = grid.querySelector(`[data-id="${connectionStart}"]`);
+          if (sourceNode) sourceNode.classList.remove('connection-start');
+          connectMachines(connectionStart, node.dataset.id, mode === 'bridge');
+          connectionStart = null;
+        }
+        return;
+      }
+      if (mode === 'inspect') {
+        selectMachine(node);
+        const type = node.dataset.type;
+        const details = {
+          digit: 'outputs 1',
+          adder: 'adds all incoming numbers',
+          subtractor: 'subtracts each later number from the first',
+          divider: 'divides the first number by each later number',
+          multiplier: 'multiplies all incoming numbers',
+          splitter: 'alternates between conveyor outputs',
+          collector: 'adds incoming numbers to your total and coin wallet'
+        };
+        showToast(`${node.title}: ${details[type]}`);
+        return;
+      }
+      if (mode === 'upgrade') {
+        selectMachine(node);
+        const level = machineLevels.get(node.dataset.id) || 1;
+        if (level >= 5) {
+          showToast(`${node.title} is already at maximum level`);
+        } else {
+          showToast(`${node.title} selected · Level ${level}`);
+        }
+        return;
+      }
+      return;
+    }
+    const belt = event.target.closest('.belt');
+    if (belt && mode === 'delete') {
+      const linkIndex = links.findIndex(link => link.id === belt.dataset.linkId);
+      if (linkIndex >= 0) removeLinkAt(linkIndex);
+      renderLinks();
+      showToast('Conveyor removed');
+      return;
+    }
+    if (event.target !== grid || mode !== 'build') return;
+
+    const cost = priceFor(selected);
+    if (balance < cost) {
+      showToast(`Need ${format.format(cost)} to build a ${machineTypes[selected].name}`);
+      return;
+    }
+
+    const rect = grid.getBoundingClientRect();
+    const x = Math.max(0, Math.min(WORLD_WIDTH - CELL_SIZE, Math.floor((event.clientX - rect.left) / zoom / CELL_SIZE) * CELL_SIZE));
+    const y = Math.max(0, Math.min(WORLD_HEIGHT - CELL_SIZE, Math.floor((event.clientY - rect.top) / zoom / CELL_SIZE) * CELL_SIZE));
+    balance -= cost;
+    addMachine(selected, x, y);
+    showToast(`${machineTypes[selected].name} built`);
+    updateStats();
+  });
+
+  setInterval(() => simulateTick(SIMULATION_STEP), SIMULATION_STEP * 1000);
+  setInterval(() => {
+    seconds++;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    document.getElementById('cycle').textContent =
+      `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+  }, 1000);
+
+  renderLinks();
+  renderAchievements();
+  applyView();
+  updateStats();
+</script>
+</body>
+</html>
